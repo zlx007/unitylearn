@@ -15,15 +15,24 @@ public class PlayerInput : MonoBehaviour
     public string keyC;
     public string keyD;
 
+    public string keyJUp;
+    public string keyJDown;
+    public string keyJLeft;
+    public string keyJRight;
+
     [Header("=====Output singals=====")]
     public float Dup;
     public float Dright;
     public float Dmag;
     public Vector3 Dvec;
+    public float Jup;
+    public float Jright;
 
     public bool run;
     public bool jump;
     private bool lastJump;
+    public bool attack;
+    private bool lastAttack;
 
     [Header("=====other======")]
     public bool inputEnable = true;
@@ -35,6 +44,8 @@ public class PlayerInput : MonoBehaviour
 
     void Update()
     {
+        Jup = (Input.GetKey(keyJUp) ? 1.0f : 0) - (Input.GetKey(keyJDown) ? 1.0f : 0);
+        Jright = (Input.GetKey(keyJRight) ? 1.0f : 0) - (Input.GetKey(keyJLeft) ? 1.0f : 0);
         TargetDup = (Input.GetKey(keyUp)?1.0f:0) - (Input.GetKey(keyDown)?1.0f:0); 
         //TargetDup = Input.GetAxis("Vertical");
         TargetDright= (Input.GetKey(keyRight) ? 1.0f : 0) - (Input.GetKey(keyLeft) ? 1.0f : 0);
@@ -61,6 +72,18 @@ public class PlayerInput : MonoBehaviour
             jump = false;
         }
         lastJump = newJump;
+
+        bool newAttack = Input.GetKey(keyC);
+        if (newAttack != lastAttack && lastAttack == true)
+        {
+            attack = true;
+            //print("!!!!");
+        }
+        else
+        {
+            attack = false;
+        }
+        lastAttack = newAttack;
 
     }
     Vector2 SquareToCircle(Vector2 square) {//Õ÷‘≤”≥…‰
