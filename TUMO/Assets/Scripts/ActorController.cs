@@ -5,7 +5,8 @@ using UnityEngine;
 public class ActorController : MonoBehaviour
 {
     public GameObject model;
-    public PlayerInput pi;
+    public CameraController camcon;
+    public IUserInput pi;
     public  float walkSpeed = 1.5f;
     public float runMultiplier = 2.0f;
     public float jumpVelocity = 5.0f;
@@ -29,19 +30,44 @@ public class ActorController : MonoBehaviour
 
 
     private bool lockPlanar = false;
+    private bool trackDirection = false;
     //private float rotateSpeed = 2f;
     void Awake()
     {
-        pi = GetComponent<PlayerInput>();
+        //pi = GetComponent<IUserInput>();
+        //解决切换输入设备无反应的方法
+        IUserInput[] inputs = GetComponents<IUserInput>();
+        foreach (var input in inputs)
+        {
+            if (input.enabled==true) {
+                pi = input;
+                break;
+            }
+        }
         anim = model.GetComponent<Animator>();
         rigid = GetComponent<Rigidbody>();
         col = GetComponent<CapsuleCollider>();
     }
     void Update()
     {
-        //速度暴增用插值
-        float targetRunMulti = ((pi.run) ? 2.0f : 1.0f);
-        anim.SetFloat("forward",pi.Dmag*Mathf.Lerp(anim.GetFloat("forward"),targetRunMulti,0.5f) );
+        if (pi.lockon) {
+            camcon.LockUnlock();
+        }
+        if (camcon.lockState == false)
+        {
+            //速度暴增用插值
+            float targetRunMulti = ((pi.run) ? 2.0f : 1.0f);
+            anim.SetFloat("forward", pi.Dmag * Mathf.Lerp(anim.GetFloat("forward"), targetRunMulti, 0.5f));
+            anim.SetFloat("right",0);
+        }
+        else {
+            Vector3 localDvec = transform.InverseTransformVector(pi.Dvec);
+            anim.SetFloat("forward",localDvec.z* ((pi.run) ? 2.0f : 1.0f));
+            anim.SetFloat("right", localDvec.x * ((pi.run) ? 2.0f : 1.0f));
+        }
+        anim.SetBool("defense",pi.defense);
+
+
         if (rigid.velocity.magnitude>1.0f) {
             anim.SetTrigger("roll");
         }
@@ -53,14 +79,34 @@ public class ActorController : MonoBehaviour
         if (pi.attack == true &&canAttack &&anim.GetCurrentAnimatorStateInfo(anim.GetLayerIndex("Base Layer")).IsName("ground")) {//判断人物状态是否在ground状态
             anim.SetTrigger("attack");
         }
-        if (pi.Dmag>0.1f) {
-            model.transform.forward = Vector3.Slerp(model.transform.forward,pi.Dvec,0.3f);
-            
+        if (camcon.lockState == false)
+        {
+            if (pi.Dmag > 0.1f)
+            {
+                model.transform.forward = Vector3.Slerp(model.transform.forward, pi.Dvec, 0.3f);
+
+            }
+            if (lockPlanar == false)
+            {
+                planarVec = pi.Dmag * model.transform.forward * walkSpeed * ((pi.run) ? runMultiplier : 1.0f);
+            }
         }
-        if (lockPlanar==false)
-        {         
-            planarVec = pi.Dmag * model.transform.forward * walkSpeed * ((pi.run) ? runMultiplier : 1.0f);
+        else {
+            if (trackDirection == false)
+            {
+                model.transform.forward = transform.forward;
+            }
+            else {
+                model.transform.forward = planarVec.normalized;
+            }
+
+            if (lockPlanar == false) {
+                planarVec = pi.Dvec * walkSpeed * ((pi.run) ? runMultiplier : 1.0f);
+            }
+
+
         }
+
 
     }
     private void FixedUpdate()
@@ -78,6 +124,7 @@ public class ActorController : MonoBehaviour
         thrustVec = new Vector3(0, jumpVelocity, 0);
         pi.inputEnable = false;
         lockPlanar = true;
+        trackDirection = true;
         
     }
     //public void OnJumpExit()
@@ -98,6 +145,7 @@ public class ActorController : MonoBehaviour
         lockPlanar = false;
         canAttack = true;
         col.material = frictionOne;
+        trackDirection = false;
     }
     public void OnGroundExit() {
         col.material = frictionZero;
@@ -111,6 +159,7 @@ public class ActorController : MonoBehaviour
         thrustVec = new Vector3(0, rollVelocity, 0);
         pi.inputEnable = false;
         lockPlanar = true;
+        trackDirection = true;
     }
     public void OnJabEnter() {
 
@@ -146,7 +195,7 @@ public class ActorController : MonoBehaviour
     }
     public void OnUpdateRM(object _deltaPos) {
         if (anim.GetCurrentAnimatorStateInfo(anim.GetLayerIndex("Attack Layer")).IsName("attack1hC")) {
-            deltaPos += (Vector3)_deltaPos;
+            deltaPos += (deltaPos+(Vector3)_deltaPos)/2;
         }
         
 
